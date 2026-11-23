@@ -1,15 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   Alert,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
 import { Colors } from '../../constants/Colors';
@@ -54,6 +56,12 @@ export default function HistoryAndSettingsScreen() {
   );
   const [showApiKey, setShowApiKey] = useState(false);
   const [restTimerInput, setRestTimerInput] = useState(String(settings.defaultRestSeconds || 90));
+
+  useEffect(() => {
+    setApiKeyInput(settings.aiApiKey || '');
+    setProviderInput(settings.aiProvider || 'gemini');
+    setRestTimerInput(String(settings.defaultRestSeconds || 90));
+  }, [settings]);
 
   // Overall Statistics
   const totalWorkouts = history.length;
@@ -270,7 +278,7 @@ export default function HistoryAndSettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <AppHeader title={t('historyTitle')} subtitle={t('historySubtitle')} />
 
       {/* 3-Segment Top Navigation */}
@@ -284,7 +292,10 @@ export default function HistoryAndSettingsScreen() {
             size={15}
             color={activeTab === 'history' ? Colors.primaryText : Colors.textMuted}
           />
-          <Text style={[styles.segmentText, activeTab === 'history' && styles.segmentTextActive]}>
+          <Text
+            style={[styles.segmentText, activeTab === 'history' && styles.segmentTextActive]}
+            numberOfLines={1}
+          >
             {t('historyTab')}
           </Text>
         </TouchableOpacity>
@@ -298,7 +309,10 @@ export default function HistoryAndSettingsScreen() {
             size={15}
             color={activeTab === 'stats' ? Colors.primaryText : Colors.textMuted}
           />
-          <Text style={[styles.segmentText, activeTab === 'stats' && styles.segmentTextActive]}>
+          <Text
+            style={[styles.segmentText, activeTab === 'stats' && styles.segmentTextActive]}
+            numberOfLines={1}
+          >
             {t('statsTab')}
           </Text>
         </TouchableOpacity>
@@ -312,7 +326,10 @@ export default function HistoryAndSettingsScreen() {
             size={15}
             color={activeTab === 'settings' ? Colors.primaryText : Colors.textMuted}
           />
-          <Text style={[styles.segmentText, activeTab === 'settings' && styles.segmentTextActive]}>
+          <Text
+            style={[styles.segmentText, activeTab === 'settings' && styles.segmentTextActive]}
+            numberOfLines={1}
+          >
             {t('settingsTab')}
           </Text>
         </TouchableOpacity>
@@ -745,7 +762,10 @@ export default function HistoryAndSettingsScreen() {
       {/* MODAL: INPUT CATAT BERAT BADAN                           */}
       {/* ======================================================== */}
       <Modal visible={weightModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('logBodyWeight')}</Text>
@@ -754,7 +774,10 @@ export default function HistoryAndSettingsScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               <Text style={styles.inputLabel}>{t('enterWeight')}</Text>
               <TextInput
                 style={styles.modalInput}
@@ -799,7 +822,7 @@ export default function HistoryAndSettingsScreen() {
               </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

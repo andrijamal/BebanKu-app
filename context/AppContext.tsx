@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import * as Haptics from 'expo-haptics';
 import {
   Exercise,
+  MuscleCategory,
   Routine,
   WorkoutLog,
   AppSettings,
@@ -11,7 +12,11 @@ import {
   ActiveWorkoutSet,
   BodyWeightLog,
 } from '../types/workout';
-import { StorageService, DEFAULT_SETTINGS } from '../services/storage';
+import {
+  StorageService,
+  DEFAULT_SETTINGS,
+  DEFAULT_MUSCLE_CATEGORIES,
+} from '../services/storage';
 import { translations, TranslationKey } from '../i18n/translations';
 import { queryAiCoach } from '../services/aiCoach';
 
@@ -26,6 +31,11 @@ interface AppContextType {
   addExercise: (exercise: Omit<Exercise, 'id' | 'createdAt'>) => Promise<Exercise>;
   updateExercise: (exercise: Exercise) => Promise<void>;
   deleteExercise: (id: string) => Promise<void>;
+
+  // Muscle Categories
+  muscleCategories: MuscleCategory[];
+  addMuscleCategory: (category: string) => Promise<MuscleCategory | null>;
+  deleteMuscleCategory: (category: string) => Promise<void>;
 
   // Routines
   routines: Routine[];
@@ -83,6 +93,10 @@ const AppContext = createContext<AppContextType | null>(null);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLangState] = useState<'id' | 'en'>('id');
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [muscleCategories, setMuscleCategories] = useState<MuscleCategory[]>(
+    DEFAULT_MUSCLE_CATEGORIES
+  );
+  const muscleCategoriesRef = useRef<MuscleCategory[]>(DEFAULT_MUSCLE_CATEGORIES);
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [history, setHistory] = useState<WorkoutLog[]>([]);
   const [bodyWeightLogs, setBodyWeightLogs] = useState<BodyWeightLog[]>([]);
@@ -101,8 +115,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Hydrate data on mount
   useEffect(() => {
     (async () => {
-      const [exList, rList, histList, bwList, sett, actWk] = await Promise.all([
+      const [exList, catList, rList, histList, bwList, sett, actWk] = await Promise.all([
         StorageService.getExercises(),
+        StorageService.getMuscleCategories(),
         StorageService.getRoutines(),
         StorageService.getHistory(),
         StorageService.getBodyWeightLogs(),
@@ -110,7 +125,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         StorageService.getActiveWorkout(),
       ]);
 
+      const mergedCats = [...catList];
+      let catsChanged = false;
+      for (const ex of exList) {
+        const cat = ex.muscleCategory?.trim();
+        if (cat && !mergedCats.some((c) => c.toLowerCase() === cat.toLowerCase())) {
+          mergedCats.push(cat);
+          catsChanged = true;
+        }
+      }
+      if (catsChanged) {
+        await StorageService.saveMuscleCategories(mergedCats);
+      }
+
       setExercises(exList);
+      muscleCategoriesRef.current = mergedCats;
+      setMuscleCategories(mergedCats);
       setRoutines(rList);
       setHistory(histList);
       setBodyWeightLogs(bwList);
@@ -172,12 +202,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const resetAllData = async () => {
     await StorageService.resetAllToDefault();
-    const [exList, rList, sett] = await Promise.all([
+    const [exList, catList, rList, sett] = await Promise.all([
       StorageService.getExercises(),
+      StorageService.getMuscleCategories(),
       StorageService.getRoutines(),
       StorageService.getSettings(),
     ]);
     setExercises(exList);
+    muscleCategoriesRef.current = catList;
+    setMuscleCategories(catList);
     setRoutines(rList);
     setHistory([]);
     setBodyWeightLogs([]);
@@ -187,10 +220,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setChatMessages([]);
   };
 
+  // Muscle Categories
+  const addMuscleCategory = async (category: string): Promise<MuscleCategory | null> => {
+    const trimmed = category.trim();
+    if (!trimmed) return null;
+
+    const existing = muscleCategoriesRef.current.find(
+      (c) => c.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existing) return existing;
+
+    const updated = [...muscleCategoriesRef.current, trimmed];
+    muscleCategoriesRef.current = updated;
+    setMuscleCategories(updated);
+    await StorageService.saveMuscleCategories(updated);
+    return trimmed;
+  };
+
+  const deleteMuscleCategory = async (category: string): Promise<void> => {
+    const updated = muscleCategoriesRef.current.filter(
+      (c) => c.toLowerCase() !== category.toLowerCase()
+    );
+    if (updated.length === 0) return;
+    muscleCategoriesRef.current = updated;
+    setMuscleCategories(updated);
+    await StorageService.saveMuscleCategories(updated);
+  };
+
   // Exercises
   const addExercise = async (exercise: Omit<Exercise, 'id' | 'createdAt'>): Promise<Exercise> => {
+    const canonicalCategory = exercise.muscleCategory?.trim()
+      ? (await addMuscleCategory(exercise.muscleCategory)) || exercise.muscleCategory.trim()
+      : exercise.muscleCategory;
+
     const newEx: Exercise = {
       ...exercise,
+      muscleCategory: canonicalCategory,
       id: `ex-${Date.now()}`,
       createdAt: new Date().toISOString(),
       isCustom: true,
@@ -202,7 +267,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateExercise = async (exercise: Exercise) => {
-    const updated = exercises.map((e) => (e.id === exercise.id ? exercise : e));
+    const canonicalCategory = exercise.muscleCategory?.trim()
+      ? (await addMuscleCategory(exercise.muscleCategory)) || exercise.muscleCategory.trim()
+      : exercise.muscleCategory;
+
+    const updatedExercise: Exercise = {
+      ...exercise,
+      muscleCategory: canonicalCategory,
+    };
+    const updated = exercises.map((e) => (e.id === updatedExercise.id ? updatedExercise : e));
     setExercises(updated);
     await StorageService.saveExercises(updated);
   };
@@ -554,6 +627,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addExercise,
         updateExercise,
         deleteExercise,
+        muscleCategories,
+        addMuscleCategory,
+        deleteMuscleCategory,
         routines,
         addRoutine,
         updateRoutine,

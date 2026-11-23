@@ -1,29 +1,23 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   Modal,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
 import { Colors } from '../../constants/Colors';
 import { AppHeader } from '../../components/AppHeader';
-import { Exercise, MuscleCategory, EquipmentType } from '../../types/workout';
-
-const STANDARD_CATEGORIES: MuscleCategory[] = [
-  'Dada',
-  'Punggung',
-  'Kaki',
-  'Bahu',
-  'Tangan',
-  'Core',
-];
+import { DEFAULT_MUSCLE_CATEGORIES } from '../../services/storage';
+import { Exercise, EquipmentType } from '../../types/workout';
 
 const STANDARD_EQUIPMENT: EquipmentType[] = [
   'Barbell',
@@ -34,7 +28,16 @@ const STANDARD_EQUIPMENT: EquipmentType[] = [
 ];
 
 export default function ExercisesScreen() {
-  const { exercises, addExercise, updateExercise, deleteExercise, t } = useApp();
+  const {
+    exercises,
+    addExercise,
+    updateExercise,
+    deleteExercise,
+    muscleCategories,
+    addMuscleCategory,
+    deleteMuscleCategory,
+    t,
+  } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilterCategory, setSelectedFilterCategory] = useState<string>('All');
@@ -43,9 +46,21 @@ export default function ExercisesScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [nameInput, setNameInput] = useState('');
-  const [muscleCategoryInput, setMuscleCategoryInput] = useState<string>('Dada');
+  const [muscleCategoryInput, setMuscleCategoryInput] = useState<string>(
+    muscleCategories[0] || 'Dada'
+  );
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [customCategoryText, setCustomCategoryText] = useState('');
   const [equipmentInput, setEquipmentInput] = useState<string>('Barbell');
+
+  useEffect(() => {
+    if (
+      selectedFilterCategory !== 'All' &&
+      !muscleCategories.includes(selectedFilterCategory)
+    ) {
+      setSelectedFilterCategory('All');
+    }
+  }, [muscleCategories, selectedFilterCategory]);
 
   const filteredExercises = useMemo(() => {
     return exercises.filter((ex) => {
@@ -59,8 +74,9 @@ export default function ExercisesScreen() {
   const openCreateModal = () => {
     setEditingExercise(null);
     setNameInput('');
-    setMuscleCategoryInput('Dada');
+    setMuscleCategoryInput(muscleCategories[0] || 'Dada');
     setCustomCategoryText('');
+    setIsAddingCategory(false);
     setEquipmentInput('Barbell');
     setModalVisible(true);
   };
@@ -68,15 +84,45 @@ export default function ExercisesScreen() {
   const openEditModal = (ex: Exercise) => {
     setEditingExercise(ex);
     setNameInput(ex.name);
-    if (STANDARD_CATEGORIES.includes(ex.muscleCategory)) {
-      setMuscleCategoryInput(ex.muscleCategory);
-      setCustomCategoryText('');
-    } else {
-      setMuscleCategoryInput('Custom');
-      setCustomCategoryText(ex.muscleCategory);
-    }
+    setMuscleCategoryInput(ex.muscleCategory);
+    setCustomCategoryText('');
+    setIsAddingCategory(false);
     setEquipmentInput(ex.equipment);
     setModalVisible(true);
+  };
+
+  const handleAddCategory = async () => {
+    const trimmed = customCategoryText.trim();
+    if (!trimmed) {
+      Alert.alert('Perhatian', t('categoryEmptyError'));
+      return;
+    }
+
+    const added = await addMuscleCategory(trimmed);
+    if (added) {
+      setMuscleCategoryInput(added);
+    }
+    setCustomCategoryText('');
+    setIsAddingCategory(false);
+  };
+
+  const confirmDeleteCategory = (cat: string) => {
+    Alert.alert(t('delete'), `${t('deleteCategoryConfirm')} (${cat})`, [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('delete'),
+        style: 'destructive',
+        onPress: async () => {
+          await deleteMuscleCategory(cat);
+          if (muscleCategoryInput === cat) {
+            setMuscleCategoryInput(DEFAULT_MUSCLE_CATEGORIES[0] || 'Dada');
+          }
+          if (selectedFilterCategory === cat) {
+            setSelectedFilterCategory('All');
+          }
+        },
+      },
+    ]);
   };
 
   const handleSave = async () => {
@@ -85,10 +131,13 @@ export default function ExercisesScreen() {
       return;
     }
 
-    const finalCategory =
-      muscleCategoryInput === 'Custom'
-        ? customCategoryText.trim() || 'Lainnya'
-        : muscleCategoryInput;
+    let finalCategory = muscleCategoryInput;
+    if (isAddingCategory && customCategoryText.trim()) {
+      const added = await addMuscleCategory(customCategoryText.trim());
+      if (added) {
+        finalCategory = added;
+      }
+    }
 
     if (editingExercise) {
       await updateExercise({
@@ -105,6 +154,8 @@ export default function ExercisesScreen() {
       });
     }
 
+    setCustomCategoryText('');
+    setIsAddingCategory(false);
     setModalVisible(false);
   };
 
@@ -124,7 +175,7 @@ export default function ExercisesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <AppHeader title={t('exercisesTitle')} subtitle={t('exercisesSubtitle')} />
 
       <View style={styles.container}>
@@ -160,7 +211,7 @@ export default function ExercisesScreen() {
         {/* Muscle Category Filter Chips */}
         <View style={styles.filterScrollWrapper}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips}>
-            {['All', ...STANDARD_CATEGORIES].map((cat) => {
+            {['All', ...muscleCategories].map((cat) => {
               const isSelected = selectedFilterCategory === cat;
               return (
                 <TouchableOpacity
@@ -218,7 +269,10 @@ export default function ExercisesScreen() {
 
       {/* Modal: Create / Edit Exercise */}
       <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
@@ -229,7 +283,10 @@ export default function ExercisesScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               <Text style={styles.inputLabel}>{t('exerciseName')}</Text>
               <TextInput
                 style={styles.textInput}
@@ -241,35 +298,109 @@ export default function ExercisesScreen() {
 
               <Text style={styles.inputLabel}>{t('muscleCategory')}</Text>
               <View style={styles.categoryChipsContainer}>
-                {[...STANDARD_CATEGORIES, 'Custom'].map((cat) => {
-                  const isSelected = muscleCategoryInput === cat;
+                {muscleCategories.map((cat) => {
+                  const isSelected = muscleCategoryInput === cat && !isAddingCategory;
+                  const isCustomCat = !DEFAULT_MUSCLE_CATEGORIES.some(
+                    (def) => def.toLowerCase() === cat.toLowerCase()
+                  );
                   return (
-                    <TouchableOpacity
+                    <View
                       key={cat}
-                      style={[styles.modalChip, isSelected && styles.modalChipActive]}
-                      onPress={() => setMuscleCategoryInput(cat)}
+                      style={[
+                        styles.modalChip,
+                        styles.modalChipRow,
+                        isSelected && styles.modalChipActive,
+                      ]}
                     >
-                      <Text
-                        style={[
-                          styles.modalChipText,
-                          isSelected && styles.modalChipTextActive,
-                        ]}
+                      <TouchableOpacity
+                        onPress={() => {
+                          setMuscleCategoryInput(cat);
+                          setIsAddingCategory(false);
+                        }}
                       >
-                        {cat === 'Custom' ? '+ Custom' : cat}
-                      </Text>
-                    </TouchableOpacity>
+                        <Text
+                          style={[
+                            styles.modalChipText,
+                            isSelected && styles.modalChipTextActive,
+                          ]}
+                        >
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                      {isCustomCat && (
+                        <TouchableOpacity
+                          onPress={() => confirmDeleteCategory(cat)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          style={styles.deleteCategoryIconBtn}
+                        >
+                          <Ionicons
+                            name="close-circle"
+                            size={15}
+                            color={isSelected ? Colors.primaryText : Colors.textDim}
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   );
                 })}
+
+                <TouchableOpacity
+                  style={[
+                    styles.modalChip,
+                    styles.modalChipRow,
+                    styles.addCategoryChip,
+                    isAddingCategory && styles.addCategoryChipActive,
+                  ]}
+                  onPress={() => setIsAddingCategory((prev) => !prev)}
+                >
+                  <Ionicons
+                    name={isAddingCategory ? 'close' : 'add'}
+                    size={15}
+                    color={isAddingCategory ? Colors.primaryText : Colors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.addCategoryChipText,
+                      isAddingCategory && styles.modalChipTextActive,
+                    ]}
+                  >
+                    {isAddingCategory ? t('cancel') : t('addMuscleCategory')}
+                  </Text>
+                </TouchableOpacity>
               </View>
 
-              {muscleCategoryInput === 'Custom' && (
-                <TextInput
-                  style={[styles.textInput, { marginTop: 10 }]}
-                  placeholder={t('customCategoryPlaceholder')}
-                  placeholderTextColor={Colors.textDim}
-                  value={customCategoryText}
-                  onChangeText={setCustomCategoryText}
-                />
+              {isAddingCategory && (
+                <View style={styles.addCategoryMenuBox}>
+                  <Text style={styles.addCategoryMenuTitle}>{t('newCategoryLabel')}</Text>
+                  <TextInput
+                    style={[styles.textInput, { marginBottom: 10 }]}
+                    placeholder={t('customCategoryPlaceholder')}
+                    placeholderTextColor={Colors.textDim}
+                    value={customCategoryText}
+                    onChangeText={setCustomCategoryText}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleAddCategory}
+                  />
+                  <View style={styles.addCategoryActionRow}>
+                    <TouchableOpacity
+                      style={styles.addCategoryCancelBtn}
+                      onPress={() => {
+                        setIsAddingCategory(false);
+                        setCustomCategoryText('');
+                      }}
+                    >
+                      <Text style={styles.addCategoryCancelBtnText}>{t('cancel')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.addCategorySaveBtn}
+                      onPress={handleAddCategory}
+                    >
+                      <Ionicons name="checkmark" size={14} color={Colors.primaryText} />
+                      <Text style={styles.addCategorySaveBtnText}>{t('addCategoryBtn')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               )}
 
               <Text style={[styles.inputLabel, { marginTop: 16 }]}>{t('equipment')}</Text>
@@ -309,7 +440,7 @@ export default function ExercisesScreen() {
               </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -519,6 +650,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderLight,
   },
+  modalChipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   modalChipActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
@@ -530,6 +666,68 @@ const styles = StyleSheet.create({
   },
   modalChipTextActive: {
     color: Colors.primaryText,
+    fontWeight: '800',
+  },
+  deleteCategoryIconBtn: {
+    marginLeft: 2,
+  },
+  addCategoryChip: {
+    borderStyle: 'dashed',
+    borderColor: Colors.primary,
+    backgroundColor: 'rgba(190, 242, 100, 0.08)',
+  },
+  addCategoryChipActive: {
+    backgroundColor: Colors.primary,
+    borderStyle: 'solid',
+    borderColor: Colors.primary,
+  },
+  addCategoryChipText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  addCategoryMenuBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.cardElevated,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  addCategoryMenuTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  addCategoryActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  addCategoryCancelBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.backgroundDark,
+  },
+  addCategoryCancelBtnText: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  addCategorySaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+  },
+  addCategorySaveBtnText: {
+    color: Colors.primaryText,
+    fontSize: 12,
     fontWeight: '800',
   },
   modalButtonRow: {

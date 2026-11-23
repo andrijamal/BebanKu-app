@@ -5,8 +5,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
@@ -28,7 +28,7 @@ export default function WorkoutHomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <AppHeader />
       <ScrollView
         style={styles.container}
@@ -61,9 +61,11 @@ export default function WorkoutHomeScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('startFromRoutine')}</Text>
           <TouchableOpacity
+            style={styles.sectionLinkRow}
             onPress={() => router.push('/routine-editor')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
+            <Ionicons name="add" size={15} color={Colors.primary} />
             <Text style={styles.sectionLink}>{t('createRoutine')}</Text>
           </TouchableOpacity>
         </View>
@@ -209,6 +211,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
     color: Colors.text,
+  },
+  sectionLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   sectionLink: {
     fontSize: 13,

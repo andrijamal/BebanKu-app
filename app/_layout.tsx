@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider } from '../context/AppContext';
 import { Colors } from '../constants/Colors';
 
@@ -33,31 +34,33 @@ export default function RootLayout() {
   }
 
   return (
-    <AppProvider>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: Colors.background },
-          animation: 'slide_from_right',
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="active-workout"
-          options={{
+    <SafeAreaProvider>
+      <AppProvider>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
             headerShown: false,
-            presentation: 'card',
+            contentStyle: { backgroundColor: Colors.background },
+            animation: 'slide_from_right',
           }}
-        />
-        <Stack.Screen
-          name="routine-editor"
-          options={{
-            headerShown: false,
-            presentation: 'modal',
-          }}
-        />
-      </Stack>
-    </AppProvider>
+        >
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="active-workout"
+            options={{
+              headerShown: false,
+              presentation: 'card',
+            }}
+          />
+          <Stack.Screen
+            name="routine-editor"
+            options={{
+              headerShown: false,
+              presentation: 'modal',
+            }}
+          />
+        </Stack>
+      </AppProvider>
+    </SafeAreaProvider>
   );
 }

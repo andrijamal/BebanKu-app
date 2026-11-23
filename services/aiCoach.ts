@@ -294,7 +294,17 @@ function generateLocalSmartResponse(
     p.includes('latih') ||
     p.includes('frekuensi')
   ) {
-    const categories = ['Dada', 'Punggung', 'Kaki', 'Bahu', 'Tangan', 'Core'];
+    const categories = Array.from(
+      new Set([
+        'Dada',
+        'Punggung',
+        'Kaki',
+        'Bahu',
+        'Tangan',
+        'Core',
+        ...Object.keys(summary.muscleFrequency),
+      ])
+    );
     const distribution = categories.map((cat) => {
       const count = summary.muscleFrequency[cat] || 0;
       return `• ${cat}: ${count}x sesi`;

@@ -3,6 +3,7 @@ import { Paths, File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import {
   Exercise,
+  MuscleCategory,
   Routine,
   WorkoutLog,
   AppSettings,
@@ -12,12 +13,22 @@ import {
 
 const STORAGE_KEYS = {
   EXERCISES: '@bebanku_exercises_v1',
+  MUSCLE_CATEGORIES: '@bebanku_muscle_categories_v1',
   ROUTINES: '@bebanku_routines_v1',
   HISTORY: '@bebanku_history_v1',
   SETTINGS: '@bebanku_settings_v1',
   ACTIVE_WORKOUT: '@bebanku_active_workout_v1',
   BODY_WEIGHT: '@bebanku_body_weight_v1',
 };
+
+export const DEFAULT_MUSCLE_CATEGORIES: MuscleCategory[] = [
+  'Dada',
+  'Punggung',
+  'Kaki',
+  'Bahu',
+  'Tangan',
+  'Core',
+];
 
 // 3-5 initial seed exercises as requested
 export const DEFAULT_EXERCISES: Exercise[] = [
@@ -129,6 +140,24 @@ export const StorageService = {
     await AsyncStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(exercises));
   },
 
+  async getMuscleCategories(): Promise<MuscleCategory[]> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.MUSCLE_CATEGORIES);
+      if (!data) {
+        await this.saveMuscleCategories(DEFAULT_MUSCLE_CATEGORIES);
+        return DEFAULT_MUSCLE_CATEGORIES;
+      }
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_MUSCLE_CATEGORIES;
+    } catch {
+      return DEFAULT_MUSCLE_CATEGORIES;
+    }
+  },
+
+  async saveMuscleCategories(categories: MuscleCategory[]): Promise<void> {
+    await AsyncStorage.setItem(STORAGE_KEYS.MUSCLE_CATEGORIES, JSON.stringify(categories));
+  },
+
   async getRoutines(): Promise<Routine[]> {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.ROUTINES);
@@ -233,19 +262,22 @@ export const StorageService = {
   // Export all user data to a JSON backup file
   async exportBackup(): Promise<boolean> {
     try {
-      const [exercises, routines, history, bodyWeights, settings] = await Promise.all([
-        this.getExercises(),
-        this.getRoutines(),
-        this.getHistory(),
-        this.getBodyWeightLogs(),
-        this.getSettings(),
-      ]);
+      const [exercises, muscleCategories, routines, history, bodyWeights, settings] =
+        await Promise.all([
+          this.getExercises(),
+          this.getMuscleCategories(),
+          this.getRoutines(),
+          this.getHistory(),
+          this.getBodyWeightLogs(),
+          this.getSettings(),
+        ]);
 
       const backupData = {
         app: 'BebanKu',
         version: '1.1.0',
         exportedAt: new Date().toISOString(),
         exercises,
+        muscleCategories,
         routines,
         history,
         bodyWeights,
@@ -277,6 +309,18 @@ export const StorageService = {
         return false;
       }
       if (parsed.exercises) await this.saveExercises(parsed.exercises);
+      if (parsed.muscleCategories && Array.isArray(parsed.muscleCategories)) {
+        await this.saveMuscleCategories(parsed.muscleCategories);
+      } else {
+        const mergedCats = [...DEFAULT_MUSCLE_CATEGORIES];
+        for (const ex of parsed.exercises) {
+          const cat = typeof ex?.muscleCategory === 'string' ? ex.muscleCategory.trim() : '';
+          if (cat && !mergedCats.some((c) => c.toLowerCase() === cat.toLowerCase())) {
+            mergedCats.push(cat);
+          }
+        }
+        await this.saveMuscleCategories(mergedCats);
+      }
       if (parsed.routines) await this.saveRoutines(parsed.routines);
       if (parsed.history) await this.saveHistory(parsed.history);
       if (parsed.bodyWeights) await this.saveBodyWeightLogs(parsed.bodyWeights);
@@ -291,6 +335,7 @@ export const StorageService = {
   async resetAllToDefault(): Promise<void> {
     await AsyncStorage.clear();
     await this.saveExercises(DEFAULT_EXERCISES);
+    await this.saveMuscleCategories(DEFAULT_MUSCLE_CATEGORIES);
     await this.saveRoutines(DEFAULT_ROUTINES);
     await this.saveSettings(DEFAULT_SETTINGS);
   },

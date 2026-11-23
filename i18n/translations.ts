@@ -46,8 +46,8 @@ export const translations = {
 
     // Active Workout Screen
     activeWorkoutTitle: 'Sesi Latihan',
-    addExerciseToWorkout: '+ Tambah Gerakan',
-    addSet: '+ Tambah Set',
+    addExerciseToWorkout: 'Tambah Gerakan',
+    addSet: 'Tambah Set',
     previousBest: 'Sebelumnya',
     restTimer: 'Waktu Istirahat',
     skipRest: 'Lewati',
@@ -58,12 +58,12 @@ export const translations = {
     // Tab 2: Routines
     routinesTitle: 'Program & Jadwal Latihan',
     routinesSubtitle: 'Kelola template jadwal latihan kustom kamu',
-    createRoutine: '+ Buat Program Baru',
+    createRoutine: 'Buat Program Baru',
     routineName: 'Nama Program',
     routineNamePlaceholder: 'Misal: Senin - Dada & Tricep, Upper Body...',
     routineDescPlaceholder: 'Deskripsi singkat program latihan ini...',
     exercisesInRoutine: 'Daftar Gerakan',
-    addExerciseToRoutine: '+ Tambah Gerakan ke Program',
+    addExerciseToRoutine: 'Tambah Gerakan ke Program',
     noExercisesInRoutine: 'Belum ada gerakan yang ditambahkan ke program ini.',
     deleteRoutineConfirm: 'Hapus program latihan ini?',
     editRoutine: 'Edit Program',
@@ -71,12 +71,17 @@ export const translations = {
     // Tab 3: Exercises
     exercisesTitle: 'Daftar Gerakan',
     exercisesSubtitle: 'Kelola seluruh gerakan dan variasinya secara bebas',
-    createExercise: '+ Tambah Gerakan Baru',
+    createExercise: 'Tambah Gerakan Baru',
     exerciseName: 'Nama Gerakan',
     exerciseNamePlaceholder: 'Misal: Incline Dumbbell Press, Romanian Deadlift...',
     muscleCategory: 'Kategori Otot',
     equipment: 'Jenis Alat',
-    customCategoryPlaceholder: 'Tulis kategori otot baru...',
+    addMuscleCategory: 'Tambah Kategori',
+    addCategoryBtn: 'Simpan Kategori',
+    newCategoryLabel: 'Menu Tambah Kategori Otot Baru',
+    customCategoryPlaceholder: 'Misal: Betis, Lengan Bawah, Kardio...',
+    deleteCategoryConfirm: 'Hapus kategori otot ini dari daftar pilihan?',
+    categoryEmptyError: 'Nama kategori otot tidak boleh kosong!',
     deleteExerciseConfirm: 'Hapus gerakan ini? (Gerakan di riwayat lama tetap tersimpan)',
 
     // Tab 4: AI Coach
@@ -106,7 +111,7 @@ export const translations = {
     // Body Weight Tracker (Bagian A)
     bodyWeightTitle: 'Pelacak Berat Badan',
     bodyWeightSubtitle: 'Pantau perubahan komposisi berat badanmu',
-    logBodyWeight: '+ Catat Berat Badan',
+    logBodyWeight: 'Catat Berat Badan',
     initialWeight: 'Berat Awal',
     currentWeight: 'Saat Ini',
     weightChange: 'Perubahan',
@@ -199,8 +204,8 @@ export const translations = {
 
     // Active Workout Screen
     activeWorkoutTitle: 'Workout Session',
-    addExerciseToWorkout: '+ Add Exercise',
-    addSet: '+ Add Set',
+    addExerciseToWorkout: 'Add Exercise',
+    addSet: 'Add Set',
     previousBest: 'Previous',
     restTimer: 'Rest Timer',
     skipRest: 'Skip',
@@ -211,12 +216,12 @@ export const translations = {
     // Tab 2: Routines
     routinesTitle: 'Workout Routines',
     routinesSubtitle: 'Freely create and manage your workout templates',
-    createRoutine: '+ Create New Routine',
+    createRoutine: 'Create New Routine',
     routineName: 'Routine Name',
     routineNamePlaceholder: 'e.g. Monday - Chest & Tricep, Upper Body...',
     routineDescPlaceholder: 'Brief description of this workout routine...',
     exercisesInRoutine: 'Exercises List',
-    addExerciseToRoutine: '+ Add Exercise to Routine',
+    addExerciseToRoutine: 'Add Exercise to Routine',
     noExercisesInRoutine: 'No exercises added to this routine yet.',
     deleteRoutineConfirm: 'Delete this workout routine?',
     editRoutine: 'Edit Routine',
@@ -224,12 +229,17 @@ export const translations = {
     // Tab 3: Exercises
     exercisesTitle: 'Exercise Library',
     exercisesSubtitle: 'Fully manage your custom exercises and equipment',
-    createExercise: '+ Add New Exercise',
+    createExercise: 'Add New Exercise',
     exerciseName: 'Exercise Name',
     exerciseNamePlaceholder: 'e.g. Incline Dumbbell Press, Romanian Deadlift...',
     muscleCategory: 'Muscle Category',
     equipment: 'Equipment',
-    customCategoryPlaceholder: 'Type new custom muscle category...',
+    addMuscleCategory: 'Add Category',
+    addCategoryBtn: 'Save Category',
+    newCategoryLabel: 'Add New Muscle Category',
+    customCategoryPlaceholder: 'e.g. Calves, Forearms, Cardio...',
+    deleteCategoryConfirm: 'Remove this muscle category from the options list?',
+    categoryEmptyError: 'Muscle category name cannot be empty!',
     deleteExerciseConfirm: 'Delete this exercise? (History logs will remain intact)',
 
     // Tab 4: AI Coach
@@ -259,7 +269,7 @@ export const translations = {
     // Body Weight Tracker (Section A)
     bodyWeightTitle: 'Body Weight Tracker',
     bodyWeightSubtitle: 'Track your body composition changes over time',
-    logBodyWeight: '+ Log Body Weight',
+    logBodyWeight: 'Log Body Weight',
     initialWeight: 'Starting',
     currentWeight: 'Current',
     weightChange: 'Net Change',

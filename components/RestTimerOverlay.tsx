@@ -4,7 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { Colors } from '../constants/Colors';
 
-export const RestTimerOverlay: React.FC = () => {
+export const RestTimerOverlay: React.FC<{ bottomOffset?: number }> = ({
+  bottomOffset = 80,
+}) => {
   const { restSecondsLeft, isRestTimerRunning, adjustRestTimer, stopRestTimer, t } = useApp();
 
   if (!isRestTimerRunning || restSecondsLeft <= 0) {
@@ -16,7 +18,7 @@ export const RestTimerOverlay: React.FC = () => {
   const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { bottom: bottomOffset }]}>
       <View style={styles.innerCard}>
         <View style={styles.leftSection}>
           <View style={styles.iconCircle}>

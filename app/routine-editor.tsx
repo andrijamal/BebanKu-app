@@ -5,16 +5,62 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   Alert,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useApp } from '../context/AppContext';
 import { Colors } from '../constants/Colors';
 import { Exercise, RoutineExercise } from '../types/workout';
+
+function NumericTargetInput({
+  value,
+  onChangeText,
+  allowDecimal,
+  placeholder,
+  style,
+}: {
+  value: number | undefined;
+  onChangeText: (val: string) => void;
+  allowDecimal?: boolean;
+  placeholder: string;
+  style: any;
+}) {
+  const [text, setText] = useState(value !== undefined && value > 0 ? String(value) : '');
+
+  useEffect(() => {
+    const parsed = allowDecimal ? parseFloat(text.replace(',', '.')) : parseInt(text, 10);
+    const normalizedTextNum = Number.isNaN(parsed) ? 0 : parsed;
+    const incoming = value || 0;
+    if (normalizedTextNum !== incoming) {
+      setText(incoming > 0 ? String(incoming) : '');
+    }
+  }, [value, allowDecimal]);
+
+  const handleChange = (val: string) => {
+    const cleaned = allowDecimal
+      ? val.replace(',', '.').replace(/[^0-9.]/g, '')
+      : val.replace(/[^0-9]/g, '');
+    setText(cleaned);
+    onChangeText(cleaned);
+  };
+
+  return (
+    <TextInput
+      style={style}
+      keyboardType={allowDecimal ? 'decimal-pad' : 'numeric'}
+      placeholder={placeholder}
+      placeholderTextColor={Colors.textDim}
+      value={text}
+      onChangeText={handleChange}
+    />
+  );
+}
 
 export default function RoutineEditorScreen() {
   const router = useRouter();
@@ -82,6 +128,30 @@ export default function RoutineEditorScreen() {
     setSelectedExercises(updated);
   };
 
+  const handleUpdateSet = (
+    exerciseIndex: number,
+    setIndex: number,
+    field: 'reps' | 'targetWeight',
+    value: string
+  ) => {
+    const updated = [...selectedExercises];
+    const target = { ...updated[exerciseIndex] };
+    const sets = [...target.targetSets];
+    const currentSet = { ...sets[setIndex] };
+    if (field === 'reps') {
+      const parsed = parseInt(value.replace(/[^0-9]/g, ''), 10);
+      currentSet.reps = Number.isNaN(parsed) ? 0 : parsed;
+    } else {
+      const normalized = value.replace(',', '.');
+      const parsed = parseFloat(normalized);
+      currentSet.targetWeight = Number.isNaN(parsed) ? 0 : parsed;
+    }
+    sets[setIndex] = currentSet;
+    target.targetSets = sets;
+    updated[exerciseIndex] = target;
+    setSelectedExercises(updated);
+  };
+
   const handleSave = async () => {
     if (!routineName.trim()) {
       Alert.alert('Perhatian', 'Nama program latihan tidak boleh kosong!');
@@ -113,12 +183,14 @@ export default function RoutineEditorScreen() {
     router.back();
   };
 
-  const filteredExercises = exercises.filter((ex) =>
-    ex.name.toLowerCase().includes(searchExercise.toLowerCase())
+  const filteredExercises = exercises.filter(
+    (ex) =>
+      ex.name.toLowerCase().includes(searchExercise.toLowerCase()) ||
+      ex.muscleCategory.toLowerCase().includes(searchExercise.toLowerCase())
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
@@ -193,16 +265,39 @@ export default function RoutineEditorScreen() {
                 {item.targetSets.map((ts, sIdx) => (
                   <View key={sIdx} style={styles.setRow}>
                     <Text style={styles.setRowIndex}>Set {sIdx + 1}</Text>
-                    <Text style={styles.setTargetText}>
-                      Target: {ts.reps} reps
-                    </Text>
-                    {item.targetSets.length > 1 && (
+                    <View style={styles.setInputsGroup}>
+                      <View style={styles.setInputField}>
+                        <NumericTargetInput
+                          style={styles.setTargetInput}
+                          value={ts.targetWeight}
+                          allowDecimal
+                          placeholder="0"
+                          onChangeText={(val) =>
+                            handleUpdateSet(exIdx, sIdx, 'targetWeight', val)
+                          }
+                        />
+                        <Text style={styles.setUnitText}>kg</Text>
+                      </View>
+                      <Text style={styles.setMultiplyText}>x</Text>
+                      <View style={styles.setInputField}>
+                        <NumericTargetInput
+                          style={styles.setTargetInput}
+                          value={ts.reps}
+                          placeholder="0"
+                          onChangeText={(val) => handleUpdateSet(exIdx, sIdx, 'reps', val)}
+                        />
+                        <Text style={styles.setUnitText}>reps</Text>
+                      </View>
+                    </View>
+                    {item.targetSets.length > 1 ? (
                       <TouchableOpacity
                         onPress={() => handleRemoveSet(exIdx, sIdx)}
                         style={styles.removeSetBtn}
                       >
                         <Ionicons name="close" size={16} color={Colors.textDim} />
                       </TouchableOpacity>
+                    ) : (
+                      <View style={styles.removeSetPlaceholder} />
                     )}
                   </View>
                 ))}
@@ -222,7 +317,10 @@ export default function RoutineEditorScreen() {
 
       {/* Modal: Exercise Selector */}
       <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('tabExercises')}</Text>
@@ -239,25 +337,32 @@ export default function RoutineEditorScreen() {
               onChangeText={setSearchExercise}
             />
 
-            <ScrollView style={{ maxHeight: 400 }}>
-              {filteredExercises.map((ex) => (
-                <TouchableOpacity
-                  key={ex.id}
-                  style={styles.modalItem}
-                  onPress={() => handleAddExerciseToRoutine(ex)}
-                >
-                  <View>
-                    <Text style={styles.modalItemName}>{ex.name}</Text>
-                    <Text style={styles.modalItemMeta}>
-                      {ex.muscleCategory} • {ex.equipment}
-                    </Text>
-                  </View>
-                  <Ionicons name="add-circle" size={24} color={Colors.primary} />
-                </TouchableOpacity>
-              ))}
+            <ScrollView style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
+              {filteredExercises.length === 0 ? (
+                <View style={styles.emptyPickerState}>
+                  <Ionicons name="search-outline" size={32} color={Colors.textDim} />
+                  <Text style={styles.emptyPickerText}>{t('emptyList')}</Text>
+                </View>
+              ) : (
+                filteredExercises.map((ex) => (
+                  <TouchableOpacity
+                    key={ex.id}
+                    style={styles.modalItem}
+                    onPress={() => handleAddExerciseToRoutine(ex)}
+                  >
+                    <View>
+                      <Text style={styles.modalItemName}>{ex.name}</Text>
+                      <Text style={styles.modalItemMeta}>
+                        {ex.muscleCategory} • {ex.equipment}
+                      </Text>
+                    </View>
+                    <Ionicons name="add-circle" size={24} color={Colors.primary} />
+                  </TouchableOpacity>
+                ))
+              )}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -386,18 +491,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 8,
+    gap: 8,
   },
   setRowIndex: {
     color: Colors.primary,
     fontSize: 12,
     fontWeight: '800',
+    width: 42,
   },
-  setTargetText: {
+  setInputsGroup: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  setInputField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    paddingHorizontal: 8,
+    height: 34,
+    gap: 4,
+  },
+  setTargetInput: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    minWidth: 36,
+    textAlign: 'center',
+    paddingVertical: 0,
+  },
+  setUnitText: {
+    color: Colors.textDim,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  setMultiplyText: {
     color: Colors.textMuted,
     fontSize: 12,
+    fontWeight: '700',
   },
   removeSetBtn: {
     padding: 4,
+  },
+  removeSetPlaceholder: {
+    width: 24,
   },
   addSetBtn: {
     flexDirection: 'row',
@@ -478,6 +620,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textDim,
     marginTop: 2,
+  },
+  emptyPickerState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    gap: 8,
+  },
+  emptyPickerText: {
+    color: Colors.textMuted,
+    fontSize: 13,
   },
 });
 

@@ -5,11 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   Modal,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -20,6 +21,7 @@ import { RestTimerOverlay } from '../components/RestTimerOverlay';
 
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     activeWorkout,
     addExerciseToActiveWorkout,
@@ -56,7 +58,7 @@ export default function ActiveWorkoutScreen() {
 
   if (!activeWorkout || !activeWorkout.isActive) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
         <View style={styles.centeredContainer}>
           <Ionicons name="barbell-outline" size={54} color={Colors.textDim} />
           <Text style={styles.noActiveTitle}>Tidak ada sesi latihan aktif</Text>
@@ -133,12 +135,14 @@ export default function ActiveWorkoutScreen() {
     setExerciseModalVisible(false);
   };
 
-  const filteredExercises = exercises.filter((ex) =>
-    ex.name.toLowerCase().includes(searchExercise.toLowerCase())
+  const filteredExercises = exercises.filter(
+    (ex) =>
+      ex.name.toLowerCase().includes(searchExercise.toLowerCase()) ||
+      ex.muscleCategory.toLowerCase().includes(searchExercise.toLowerCase())
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       {/* Top Header */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
@@ -221,7 +225,7 @@ export default function ActiveWorkoutScreen() {
                 <Text style={styles.setIndexText}>{setIdx + 1}</Text>
 
                 <Text style={styles.prevText}>
-                  {set.prevWeight ? `${set.prevWeight}k x ${set.prevReps}` : '-'}
+                  {set.prevWeight ? `${set.prevWeight}kg x ${set.prevReps}` : '-'}
                 </Text>
 
                 <TextInput
@@ -373,7 +377,10 @@ export default function ActiveWorkoutScreen() {
 
       {/* Exercise Picker Modal */}
       <Modal visible={exerciseModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('tabExercises')}</Text>
@@ -390,29 +397,36 @@ export default function ActiveWorkoutScreen() {
               onChangeText={setSearchExercise}
             />
 
-            <ScrollView style={{ maxHeight: 400 }}>
-              {filteredExercises.map((ex) => (
-                <TouchableOpacity
-                  key={ex.id}
-                  style={styles.exercisePickerItem}
-                  onPress={() => handleSelectExercise(ex)}
-                >
-                  <View>
-                    <Text style={styles.pickerExName}>{ex.name}</Text>
-                    <Text style={styles.pickerExMeta}>
-                      {ex.muscleCategory} • {ex.equipment}
-                    </Text>
-                  </View>
-                  <Ionicons name="add-circle" size={24} color={Colors.primary} />
-                </TouchableOpacity>
-              ))}
+            <ScrollView style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
+              {filteredExercises.length === 0 ? (
+                <View style={styles.emptyPickerState}>
+                  <Ionicons name="search-outline" size={32} color={Colors.textDim} />
+                  <Text style={styles.emptyPickerText}>{t('emptyList')}</Text>
+                </View>
+              ) : (
+                filteredExercises.map((ex) => (
+                  <TouchableOpacity
+                    key={ex.id}
+                    style={styles.exercisePickerItem}
+                    onPress={() => handleSelectExercise(ex)}
+                  >
+                    <View>
+                      <Text style={styles.pickerExName}>{ex.name}</Text>
+                      <Text style={styles.pickerExMeta}>
+                        {ex.muscleCategory} • {ex.equipment}
+                      </Text>
+                    </View>
+                    <Ionicons name="add-circle" size={24} color={Colors.primary} />
+                  </TouchableOpacity>
+                ))
+              )}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Rest Timer Overlay */}
-      <RestTimerOverlay />
+      <RestTimerOverlay bottomOffset={24 + insets.bottom} />
     </SafeAreaView>
   );
 }
@@ -801,5 +815,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textDim,
     marginTop: 2,
+  },
+  emptyPickerState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    gap: 8,
+  },
+  emptyPickerText: {
+    color: Colors.textMuted,
+    fontSize: 13,
   },
 });

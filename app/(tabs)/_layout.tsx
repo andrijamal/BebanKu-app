@@ -1,12 +1,14 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { useApp } from '../../context/AppContext';
 import { RestTimerOverlay } from '../../components/RestTimerOverlay';
 
 export default function TabLayout() {
   const { t } = useApp();
+  const insets = useSafeAreaInsets();
 
   return (
     <>
@@ -19,8 +21,8 @@ export default function TabLayout() {
             backgroundColor: Colors.tabBar,
             borderTopColor: Colors.tabBarBorder,
             borderTopWidth: 1,
-            height: 64,
-            paddingBottom: 8,
+            height: 60 + insets.bottom,
+            paddingBottom: Math.max(insets.bottom, 8),
             paddingTop: 8,
           },
           tabBarLabelStyle: {
@@ -75,7 +77,7 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-      <RestTimerOverlay />
+      <RestTimerOverlay bottomOffset={68 + insets.bottom} />
     </>
   );
 }
